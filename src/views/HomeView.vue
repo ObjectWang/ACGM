@@ -62,10 +62,18 @@
             class="item-card"
             @click="goDetail(item.id)"
           >
-            <div class="card-cover" :style="{ background: coverGradient(item.category) }">
-              <el-icon class="cover-icon"><component :is="categoryIcon(item.category)" /></el-icon>
-              <span class="cover-cat">{{ categoryLabel(item.category) }}</span>
-            </div>
+            <div class="card-cover" :style="cardCoverStyle(item)">
+              <el-image
+                v-if="coverUrl(item)"
+                :src="coverUrl(item)"
+                fit="cover"
+                class="cover-img"
+              />
+              <template v-else>
+                <el-icon class="cover-icon"><component :is="categoryIcon(item.category)" /></el-icon>
+                <span class="cover-cat">{{ categoryLabel(item.category) }}</span>
+              </template>
+           </div>
             <div class="card-body">
               <h3 class="card-title">{{ item.title }}</h3>
               <p v-if="item.author" class="card-author">{{ item.author }}</p>
@@ -161,6 +169,7 @@ import { CATEGORY_OPTIONS, STATUS_OPTIONS, categoryLabel, categoryColor } from "
 import type { Category, Item, ItemStatus, SortField, SortOrder } from "../lib/types";
 import { listItems, deleteItem, countByCategory } from "../lib/items";
 import { deleteItemImages } from "../lib/api";
+import { assetUrl } from "../lib/paths";
 import ItemFormDialog from "../components/ItemFormDialog.vue";
 
 const router = useRouter();
@@ -197,6 +206,14 @@ const coverGradient = (cat: Category): string => {
   const c = categoryColor(cat);
   return `linear-gradient(135deg, ${c}33, ${c}11)`;
 };
+
+function coverUrl(item: Item): string {
+  return item.cover_path ? assetUrl(item.cover_path) : "";
+}
+
+function cardCoverStyle(item: Item): Record<string, string> {
+  return coverUrl(item) ? {} : { background: coverGradient(item.category) };
+}
 
 const statusClass = (s: ItemStatus): string => {
   switch (s) {
@@ -348,6 +365,7 @@ onMounted(() => {
 }
 .cover-icon { font-size: 40px; color: #6b7280; }
 .cover-cat { font-size: 13px; color: #6b7280; }
+.cover-img { width: 100%; height: 100%; object-fit: cover; }
 .card-body { padding: 10px 12px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .card-title { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-author { margin: 0; font-size: 12px; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

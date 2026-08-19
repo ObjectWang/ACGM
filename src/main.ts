@@ -5,4 +5,13 @@ import App from "./App.vue";
 import router from "./router";
 import "./styles/global.css";
 
-createApp(App).use(ElementPlus).use(router).mount("#app");
+import { initDataDir } from "./lib/paths";
+
+// Initialize the app data dir path before mounting so assetUrl() is ready.
+initDataDir()
+  .catch(() => {
+    /* running outside Tauri (e.g. plain browser dev) — assetUrl returns "" */
+  })
+  .finally(() => {
+    createApp(App).use(ElementPlus).use(router).mount("#app");
+  });

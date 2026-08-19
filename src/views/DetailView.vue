@@ -9,11 +9,21 @@
     </header>
 
     <div v-if="item" class="detail-body">
-      <!-- 封面区（Step 3 接入图片） -->
-      <div class="cover-area" :style="{ background: coverGradient(item.category) }">
-        <el-icon class="cover-icon"><component :is="categoryIcon(item.category)" /></el-icon>
-        <span class="cover-cat">{{ categoryLabel(item.category) }}</span>
-      </div>
+      <!-- 封面区 -->
+      <div class="cover-area" :style="coverStyle">
+        <el-image
+          v-if="coverSrc"
+          :src="coverSrc"
+          fit="cover"
+          preview-teleported
+          :preview-src-list="[coverSrc]"
+          class="cover-img"
+        />
+        <template v-else>
+          <el-icon class="cover-icon"><component :is="categoryIcon(item.category)" /></el-icon>
+          <span class="cover-cat">{{ categoryLabel(item.category) }}</span>
+        </template>
+     </div>
 
       <!-- 标题 / 元信息 -->
       <section class="info-section">
@@ -42,11 +52,11 @@
         <span class="muted">（将在标签系统步骤接入）</span>
       </section>
 
-      <!-- 截图画廊（Step 3 接入） -->
+      <!-- 图片管理：封面 + 截图画廊 -->
       <section class="info-section">
-        <span class="section-label">截图</span>
-        <span class="muted">（将在图片管理步骤接入）</span>
-      </section>
+        <h2 class="section-heading">图片管理</h2>
+        <ImageGallery :item-id="item.id" @cover-changed="load" />
+     </section>
 
       <!-- 简介 -->
       <section v-if="item.description" class="info-section">
@@ -68,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -79,7 +89,9 @@ import { categoryLabel, categoryColor } from "../lib/constants";
 import type { Category, Item, ItemStatus } from "../lib/types";
 import { getItem, deleteItem } from "../lib/items";
 import { deleteItemImages } from "../lib/api";
+import { assetUrl } from "../lib/paths";
 import ItemFormDialog from "../components/ItemFormDialog.vue";
+import ImageGallery from "../components/ImageGallery.vue";
 
 const props = defineProps<{ id: string }>();
 const router = useRouter();
@@ -103,6 +115,11 @@ const coverGradient = (cat: Category): string => {
   const c = categoryColor(cat);
   return `linear-gradient(135deg, ${c}33, ${c}11)`;
 };
+
+const coverSrc = computed(() => (item.value?.cover_path ? assetUrl(item.value.cover_path) : ""));
+const coverStyle = computed(() =>
+  coverSrc.value ? {} : { background: coverGradient(item.value?.category ?? "other") }
+);
 
 const statusClass = (s: ItemStatus): string => {
   switch (s) {
@@ -171,6 +188,7 @@ onMounted(load);
 }
 .cover-icon { font-size: 56px; color: #6b7280; }
 .cover-cat { font-size: 14px; color: #6b7280; }
+.cover-img { width: 100%; height: 100%; object-fit: cover; }
 
 .info-section { margin-bottom: 22px; }
 .detail-title { margin: 0 0 12px; font-size: 24px; font-weight: 700; }

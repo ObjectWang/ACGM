@@ -187,3 +187,9 @@ export async function countByCategory(): Promise<Record<string, number>> {
   for (const row of rows) result[row.category] = row.n;
   return result;
 }
+
+/** Update only the cover_path column (used by image management flows). */
+export async function updateCoverPath(id: number, coverPath: string | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE items SET cover_path = ? WHERE id = ?", [coverPath, id]);
+}

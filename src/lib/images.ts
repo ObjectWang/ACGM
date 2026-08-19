@@ -1,5 +1,7 @@
 import { getDb, withTransaction } from "./db";
 import type { ItemImage } from "./types";
+import { importImage, deleteImageFile } from "./api";
+import { updateCoverPath } from "./items";
 
 export async function listImages(itemId: number): Promise<ItemImage[]> {
   const db = await getDb();
@@ -47,4 +49,52 @@ export async function deleteImage(id: number): Promise<ItemImage | null> {
     await db.execute("DELETE FROM images WHERE id = ?", [id]);
   }
   return image;
+}
+
+/** Upload a cover image: copy file → generate thumbnail → add DB row → sync items.cover_path. */
+export async function uploadCoverImage(itemId: number, sourcePath: string): Promise<ItemImage> {
+  const result = await importImage(itemId, sourcePath, true);
+  const imageId = await addImage(itemId, result.file_path, result.thumb_path, true);
+  await updateCoverPath(itemId, result.file_path);
+  return {
+    id: imageId,
+    item_id: itemId,
+    file_path: result.file_path,
+    thumb_path: result.thumb_path,
+    sort_order: 0,
+    is_cover: 1,
+  };
+}
+
+/** Upload a screenshot: copy file → generate thumbnail → add DB row. */
+export async function uploadScreenshot(itemId: number, sourcePath: string): Promise<ItemImage> {
+  const result = await importImage(itemId, sourcePath, false);
+  const imageId = await addImage(itemId, result.file_path, result.thumb_path, false);
+  return {
+    id: imageId,
+    item_id: itemId,
+    file_path: result.file_path,
+    thumb_path: result.thumb_path,
+    sort_order: 0,
+    is_cover: 0,
+  };
+}
+
+/** Set an existing image as the cover and sync items.cover_path. */
+export async function setCoverImage(itemId: number, imageId: number, filePath: string): Promise<void> {
+  await setCover(itemId, imageId);
+  await updateCoverPath(itemId, filePath);
+}
+
+/** Delete an image: remove DB row + physical files, and clear cover_path if it was the cover. */
+export async function deleteImageComplete(itemId: number, imageId: number): Promise<void> {
+  const image = await deleteImage(imageId);
+  if (!image) return;
+  await deleteImageFile(image.file_path);
+  if (image.thumb_path) {
+    await deleteImageFile(image.thumb_path);
+  }
+  if (image.is_cover) {
+    await updateCoverPath(itemId, null);
+  }
 }
