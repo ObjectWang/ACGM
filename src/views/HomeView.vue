@@ -89,6 +89,15 @@
                   @click.stop="openPath(item)"
                 />
               </div>
+              <div v-if="cardTags[item.id]?.length" class="card-tags">
+                <el-tag
+                  v-for="tag in cardTags[item.id]"
+                  :key="tag.id"
+                  size="small"
+                  :color="tag.color || undefined"
+                  :style="tag.color ? { color: '#fff', borderColor: tag.color } : {}"
+                >{{ tag.name }}</el-tag>
+              </div>
             </div>
             <div class="card-actions" @click.stop>
               <el-button text size="small" :icon="Edit" @click="openEdit(item)">编辑</el-button>
@@ -175,7 +184,8 @@ import {
 import type { Component } from "vue";
 import { CATEGORY_OPTIONS, STATUS_OPTIONS, categoryLabel, categoryColor } from "../lib/constants";
 import type { Category, Item, ItemStatus, SortField, SortOrder } from "../lib/types";
-import { listItems, deleteItem, countByCategory } from "../lib/items";
+import { listItems, deleteItem, countByCategory, getTagsForItems } from "../lib/items";
+import type { Tag } from "../lib/types";
 import { deleteItemImages } from "../lib/api";
 import { assetUrl } from "../lib/paths";
 import { openLocalPath } from "../lib/localpath";
@@ -196,6 +206,9 @@ const items = ref<Item[]>([]);
 const total = ref(0);
 const loading = ref(false);
 const counts = reactive<Record<string, number>>({});
+
+// Tags for each item card, keyed by item id.
+const cardTags = ref<Record<number, Tag[]>>({});
 
 const dialogVisible = ref(false);
 const editingItem = ref<Item | null>(null);
@@ -247,8 +260,14 @@ async function load() {
       page: page.value,
       pageSize,
     });
-    items.value = res.items;
-    total.value = res.total;
+   items.value = res.items;
+   total.value = res.total;
+    // Fetch tags for all loaded items in one query.
+    if (res.items.length > 0) {
+      cardTags.value = await getTagsForItems(res.items.map((i) => i.id));
+    } else {
+      cardTags.value = {};
+    }
   } catch (e) {
     ElMessage.error("加载失败：" + String(e));
   } finally {
@@ -394,6 +413,7 @@ onMounted(() => {
 .st-dropped { background: #fef0f0; color: #f56c6c; }
 .card-actions { display: flex; justify-content: flex-end; border-top: 1px solid #f2f3f5; padding: 2px 4px; }
 .path-btn { margin-left: auto; padding: 2px; height: auto; min-height: 0; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .list-wrap { flex: 1; overflow-y: auto; padding: 16px 20px; }
 .row-title { font-weight: 600; cursor: pointer; }

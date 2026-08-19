@@ -53,6 +53,10 @@
         </div>
       </el-form-item>
 
+      <el-form-item label="标签" prop="tagIds">
+        <TagSelector v-model="selectedTagIds" />
+      </el-form-item>
+
       <el-form-item label="简介" prop="description">
         <el-input v-model="form.description" type="textarea" :rows="3" maxlength="2000" show-word-limit />
       </el-form-item>
@@ -78,6 +82,8 @@ import { CATEGORY_OPTIONS, STATUS_OPTIONS } from "../lib/constants";
 import type { Category, Item, ItemInput, ItemStatus } from "../lib/types";
 import { createItem, updateItem } from "../lib/items";
 import { pickFilePath, pickFolderPath, checkPath } from "../lib/localpath";
+import { getItemTags, setItemTags } from "../lib/items";
+import TagSelector from "./TagSelector.vue";
 
 const props = defineProps<{
   visible: boolean;
@@ -125,6 +131,8 @@ async function pickFile() {
 
 const rateTexts = ["1 星", "2 星", "3 星", "4 星", "5 星"];
 
+const selectedTagIds = ref<number[]>([]);
+
 const form = reactive<ItemInput>({
   title: "",
   category: "anime",
@@ -152,7 +160,7 @@ const authorPlaceholder = computed(() => {
   }
 });
 
-function handleOpen() {
+async function handleOpen() {
   if (props.item) {
     Object.assign(form, {
       title: props.item.title,
@@ -163,22 +171,30 @@ function handleOpen() {
       review: props.item.review,
       status: props.item.status,
       cover_path: props.item.cover_path,
-      local_path: props.item.local_path,
-    });
-  } else {
-    Object.assign(form, {
-      title: "",
-      category: "anime" as Category,
-      author: null,
-      description: null,
-      rating: null,
-      review: null,
-      status: "未开始" as ItemStatus,
-      cover_path: null,
-      local_path: null,
-    });
-  }
-  formRef.value?.clearValidate();
+     local_path: props.item.local_path,
+   });
+    // Load existing tags for this item.
+    try {
+      const tags = await getItemTags(props.item.id);
+      selectedTagIds.value = tags.map((t) => t.id);
+    } catch {
+      selectedTagIds.value = [];
+    }
+ } else {
+   Object.assign(form, {
+     title: "",
+     category: "anime" as Category,
+     author: null,
+     description: null,
+     rating: null,
+     review: null,
+     status: "未开始" as ItemStatus,
+     cover_path: null,
+     local_path: null,
+   });
+    selectedTagIds.value = [];
+ }
+ formRef.value?.clearValidate();
 }
 
 async function handleSubmit() {
@@ -212,15 +228,17 @@ async function handleSubmit() {
         review: form.review?.trim() || null,
         local_path: form.local_path?.trim() || null,
       };
-      if (props.item) {
-        await updateItem(props.item.id, payload);
-        emit("saved", props.item.id);
-        ElMessage.success("已更新");
-      } else {
-        const id = await createItem(payload);
-        emit("saved", id);
-        ElMessage.success("已创建");
-      }
+     if (props.item) {
+       await updateItem(props.item.id, payload);
+        await setItemTags(props.item.id, selectedTagIds.value);
+       emit("saved", props.item.id);
+       ElMessage.success("已更新");
+     } else {
+       const id = await createItem(payload);
+        await setItemTags(id, selectedTagIds.value);
+       emit("saved", id);
+       ElMessage.success("已创建");
+     }
       emit("update:visible", false);
     } catch (e) {
       ElMessage.error("保存失败：" + String(e));

@@ -23,3 +23,14 @@ export async function deleteTag(id: number): Promise<void> {
     await db.execute("DELETE FROM tags WHERE id = ?", [id]);
   });
 }
+
+/** Count how many items use each tag. Returns a map of tagId → count. */
+export async function countTagUsage(): Promise<Record<number, number>> {
+  const db = await getDb();
+  const rows = await db.select<Array<{ tag_id: number; n: number }>>(
+    "SELECT tag_id, COUNT(*) AS n FROM item_tags GROUP BY tag_id"
+  );
+  const result: Record<number, number> = {};
+  for (const row of rows) result[row.tag_id] = row.n;
+  return result;
+}

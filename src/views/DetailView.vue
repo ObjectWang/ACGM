@@ -66,11 +66,19 @@
         </div>
      </section>
 
-      <!-- 标签（Step 5 接入） -->
+      <!-- 标签 -->
       <section class="info-section">
         <span class="section-label">标签</span>
-        <span class="muted">（将在标签系统步骤接入）</span>
-      </section>
+        <el-tag
+          v-for="tag in itemTags"
+          :key="tag.id"
+          :color="tag.color || undefined"
+          :style="tag.color ? { color: '#fff', borderColor: tag.color } : {}"
+          size="small"
+          class="tag-chip"
+        >{{ tag.name }}</el-tag>
+        <span v-if="itemTags.length === 0" class="muted">暂无标签</span>
+     </section>
 
       <!-- 图片管理：封面 + 截图画廊 -->
       <section class="info-section">
@@ -107,7 +115,8 @@ import {
 import type { Component } from "vue";
 import { categoryLabel, categoryColor } from "../lib/constants";
 import type { Category, Item, ItemStatus } from "../lib/types";
-import { getItem, deleteItem } from "../lib/items";
+import { getItem, deleteItem, getItemTags } from "../lib/items";
+import type { Tag } from "../lib/types";
 import { deleteItemImages } from "../lib/api";
 import { assetUrl } from "../lib/paths";
 import { checkPath, openLocalPath } from "../lib/localpath";
@@ -120,6 +129,8 @@ const router = useRouter();
 const item = ref<Item | null>(null);
 const loading = ref(true);
 const dialogVisible = ref(false);
+
+const itemTags = ref<Tag[]>([]);
 
 // local path validity: null = checking, true = valid, false = invalid
 const pathValid = ref<boolean | null>(null);
@@ -163,6 +174,13 @@ async function load() {
     pathValid.value = null;
     if (item.value?.local_path) {
       checkPath(item.value.local_path).then((v) => { pathValid.value = v; });
+    }
+    if (item.value) {
+      try {
+        itemTags.value = await getItemTags(item.value.id);
+      } catch {
+        itemTags.value = [];
+      }
     }
   } catch (e) {
     ElMessage.error("加载失败：" + String(e));
@@ -246,6 +264,7 @@ onMounted(load);
 .section-label { font-size: 13px; color: #6b7280; margin-right: 8px; }
 .section-heading { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
 .muted { color: #c0c4cc; font-size: 13px; }
+.tag-chip { margin-right: 6px; }
 .path-text { font-size: 13px; background: #f3f4f6; padding: 2px 8px; border-radius: 4px; }
 .description-text { margin: 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; color: #374151; }
 .review-text { margin: 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; color: #374151; font-family: inherit; background: #fff; padding: 14px; border-radius: 8px; border: 1px solid #ebeef5; }
