@@ -1,8 +1,17 @@
 import Database from "@tauri-apps/plugin-sql";
 
-const DB_URL = "sqlite:acgm.db";
+// DB_URL is set dynamically after getDataDir() returns the exe directory path.
+// tauri-plugin-sql resolves "sqlite:<path>" relative to the app data dir,
+// but we store data next to the exe. We build the full path at runtime.
+let DB_URL = "sqlite:acgm.db";
 
 let dbPromise: Promise<Database> | null = null;
+
+export function setDbUrl(url: string): void {
+  DB_URL = url;
+  // Reset so next getDb() uses the new URL.
+  dbPromise = null;
+}
 
 export function getDb(): Promise<Database> {
   if (!dbPromise) {
@@ -17,17 +26,4 @@ export async function initDatabase(): Promise<number> {
     "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN ('items', 'tags', 'item_tags', 'images')"
   );
   return rows[0]?.n ?? 0;
-}
-
-export async function withTransaction<T>(fn: (db: Database) => Promise<T>): Promise<T> {
-  const db = await getDb();
-  await db.execute("BEGIN IMMEDIATE");
-  try {
-    const result = await fn(db);
-    await db.execute("COMMIT");
-    return result;
-  } catch (error) {
-    await db.execute("ROLLBACK");
-    throw error;
-  }
 }

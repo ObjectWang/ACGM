@@ -1,4 +1,4 @@
-import { getDb, withTransaction } from "./db";
+import { getDb } from "./db";
 import type { Tag } from "./types";
 
 export async function listTags(): Promise<Tag[]> {
@@ -18,10 +18,9 @@ export async function updateTag(id: number, name: string, color: string | null):
 }
 
 export async function deleteTag(id: number): Promise<void> {
-  await withTransaction(async (db) => {
-    await db.execute("DELETE FROM item_tags WHERE tag_id = ?", [id]);
-    await db.execute("DELETE FROM tags WHERE id = ?", [id]);
-  });
+  // FK CASCADE on item_tags handles the association cleanup.
+  const db = await getDb();
+  await db.execute("DELETE FROM tags WHERE id = ?", [id]);
 }
 
 /** Count how many items use each tag. Returns a map of tagId → count. */

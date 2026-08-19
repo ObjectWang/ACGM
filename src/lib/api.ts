@@ -9,6 +9,10 @@ export function getDataDir(): Promise<string> {
   return invoke<string>("get_data_dir");
 }
 
+export function getDbUrl(): Promise<string> {
+  return invoke<string>("get_db_url");
+}
+
 export function pathExists(path: string): Promise<boolean> {
   return invoke<boolean>("path_exists", { path });
 }

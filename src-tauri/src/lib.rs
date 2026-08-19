@@ -1,9 +1,27 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Manager};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 const MAX_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
+
+/// Returns the directory containing the executable.
+fn exe_dir() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    exe.parent()
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| "无法定位 exe 所在目录".to_string())
+}
+
+/// Initialize the database directly with rusqlite, ensuring tables exist
+/// regardless of when the JS-side Database.load() is called.
+fn init_database_schema(db_path: &Path) -> Result<(), String> {
+    use rusqlite::Connection;
+    let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
+    conn.execute_batch(include_str!("../migrations/20260819000000_init.sql"))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 fn migrations() -> Vec<Migration> {
     vec![Migration {
@@ -21,11 +39,13 @@ struct ImageImport {
 }
 
 #[tauri::command]
-fn get_data_dir(app: AppHandle) -> Result<String, String> {
-    app.path()
-        .app_data_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .map_err(|e| e.to_string())
+fn get_data_dir(_app: AppHandle) -> Result<String, String> {
+    exe_dir().map(|p| p.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn get_db_url() -> Result<String, String> {
+    exe_dir().map(|p| format!("sqlite:{}", p.join("acgm.db").display()))
 }
 
 #[tauri::command]
@@ -35,7 +55,7 @@ fn path_exists(path: String) -> bool {
 
 #[tauri::command]
 fn import_image(
-    app: AppHandle,
+    _app: AppHandle,
     item_id: i64,
     source_path: String,
     is_cover: bool,
@@ -56,7 +76,7 @@ fn import_image(
         return Err("单张图片不能超过 10MB".into());
     }
 
-    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let data_dir = exe_dir()?;
     let item_dir = data_dir.join("images").join(item_id.to_string());
     std::fs::create_dir_all(&item_dir).map_err(|e| e.to_string())?;
 
@@ -98,8 +118,8 @@ fn import_image(
 }
 
 #[tauri::command]
-fn delete_item_images(app: AppHandle, item_id: i64) -> Result<(), String> {
-    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+fn delete_item_images(_app: AppHandle, item_id: i64) -> Result<(), String> {
+    let data_dir = exe_dir()?;
     let item_dir = data_dir.join("images").join(item_id.to_string());
     if item_dir.exists() {
         std::fs::remove_dir_all(&item_dir).map_err(|e| e.to_string())?;
@@ -108,13 +128,13 @@ fn delete_item_images(app: AppHandle, item_id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn delete_image_file(app: AppHandle, rel_path: String) -> Result<(), String> {
+fn delete_image_file(_app: AppHandle, rel_path: String) -> Result<(), String> {
     let normalized = rel_path.replace('\\', "/");
     if normalized.contains("..") || normalized.starts_with('/') {
         return Err("非法图片路径".into());
     }
 
-    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let data_dir = exe_dir()?;
     let target = data_dir.join(normalized);
     if target.exists() {
         std::fs::remove_file(&target).map_err(|e| e.to_string())?;
@@ -124,21 +144,32 @@ fn delete_image_file(app: AppHandle, rel_path: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let dir = exe_dir().expect("无法定位 exe 所在目录");
+    let db_url = format!("sqlite:{}", dir.join("acgm.db").display());
+    let db_path = dir.join("acgm.db");
+
+    // Create the database and run migrations immediately at startup.
+    std::fs::create_dir_all(&dir).ok();
+    init_database_schema(&db_path).expect("数据库初始化失败");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:acgm.db", migrations())
+                .add_migrations(db_url.as_str(), migrations())
                 .build(),
         )
-        .setup(|app| {
-            let data_dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(data_dir.join("images"))?;
+        .setup(move |app| {
+            std::fs::create_dir_all(dir.join("images"))?;
+            // Allow the webview to load images from the exe directory via the asset protocol.
+            app.asset_protocol_scope()
+                .allow_directory(&dir, true)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_data_dir,
+            get_db_url,
             path_exists,
             import_image,
             delete_item_images,

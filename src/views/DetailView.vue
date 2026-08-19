@@ -9,34 +9,37 @@
     </header>
 
     <div v-if="item" class="detail-body">
-      <!-- 封面区 -->
-      <div class="cover-area" :style="coverStyle">
-        <el-image
-          v-if="coverSrc"
-          :src="coverSrc"
-          fit="cover"
-          preview-teleported
-          :preview-src-list="[coverSrc]"
-          class="cover-img"
-        />
-        <template v-else>
-          <el-icon class="cover-icon"><component :is="categoryIcon(item.category)" /></el-icon>
-          <span class="cover-cat">{{ categoryLabel(item.category) }}</span>
-        </template>
-     </div>
-
-      <!-- 标题 / 元信息 -->
-      <section class="info-section">
-        <h1 class="detail-title">{{ item.title }}</h1>
-        <div class="meta-row">
-          <span class="cat-badge" :style="{ background: categoryColor(item.category) + '22', color: categoryColor(item.category) }">
-            {{ categoryLabel(item.category) }}
-          </span>
-          <span v-if="item.author" class="meta-text">创作者：{{ item.author }}</span>
-          <el-rate :model-value="item.rating ?? 0" disabled show-text :texts="rateTexts" />
-          <span class="status-tag" :class="statusClass(item.status)">{{ item.status }}</span>
+      <!-- 封面 + 标题 / 元信息（并排布局） -->
+      <div class="detail-header">
+        <div class="cover-area" :style="coverStyle">
+          <el-image
+            v-if="coverSrc"
+            :src="coverSrc"
+            fit="cover"
+            preview-teleported
+            :preview-src-list="[coverSrc]"
+            class="cover-img"
+          />
+          <template v-else>
+            <el-icon class="cover-icon"><component :is="categoryIcon(item.category)" /></el-icon>
+            <span class="cover-cat">{{ categoryLabel(item.category) }}</span>
+          </template>
         </div>
-      </section>
+
+        <div class="header-info">
+          <h1 class="detail-title">{{ item.title }}</h1>
+          <div class="meta-row">
+            <span class="cat-badge" :style="{ background: categoryColor(item.category) + '22', color: categoryColor(item.category) }">
+              {{ categoryLabel(item.category) }}
+            </span>
+            <span v-if="item.author" class="meta-text">创作者：{{ item.author }}</span>
+          </div>
+          <div class="meta-row">
+            <el-rate :model-value="item.rating ?? 0" disabled show-text :texts="rateTexts" />
+            <span class="status-tag" :class="statusClass(item.status)">{{ item.status }}</span>
+          </div>
+        </div>
+      </div>
 
       <!-- 本地路径 -->
       <section v-if="item.local_path" class="info-section">
@@ -245,10 +248,15 @@ onMounted(load);
 
 .detail-body { max-width: 760px; margin: 0 auto; padding: 24px; width: 100%; }
 
+.detail-header {
+  display: flex; gap: 24px; align-items: flex-start; margin-bottom: 24px;
+}
+.header-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+
 .cover-area {
-  width: 220px; aspect-ratio: 3 / 4; border-radius: 10px;
+  width: 180px; flex-shrink: 0; aspect-ratio: 3 / 4; border-radius: 10px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; margin-bottom: 20px;
+  gap: 10px; overflow: hidden;
 }
 .cover-icon { font-size: 56px; color: #6b7280; }
 .cover-cat { font-size: 14px; color: #6b7280; }

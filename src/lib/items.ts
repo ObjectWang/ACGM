@@ -1,4 +1,4 @@
-import { getDb, withTransaction } from "./db";
+import { getDb } from "./db";
 import type { Item, ItemFilters, ItemInput, SortField, SortOrder, Tag } from "./types";
 
 interface PagedItems {
@@ -138,20 +138,17 @@ export async function updateItem(id: number, input: ItemInput): Promise<void> {
 }
 
 export async function deleteItem(id: number): Promise<void> {
-  await withTransaction(async (db) => {
-    await db.execute("DELETE FROM images WHERE item_id = ?", [id]);
-    await db.execute("DELETE FROM item_tags WHERE item_id = ?", [id]);
-    await db.execute("DELETE FROM items WHERE id = ?", [id]);
-  });
+  // FK CASCADE handles item_tags and images automatically.
+  const db = await getDb();
+  await db.execute("DELETE FROM items WHERE id = ?", [id]);
 }
 
 export async function setItemTags(itemId: number, tagIds: number[]): Promise<void> {
-  await withTransaction(async (db) => {
-    await db.execute("DELETE FROM item_tags WHERE item_id = ?", [itemId]);
-    for (const tagId of tagIds) {
-      await db.execute("INSERT OR IGNORE INTO item_tags (item_id, tag_id) VALUES (?, ?)", [itemId, tagId]);
-    }
-  });
+  const db = await getDb();
+  await db.execute("DELETE FROM item_tags WHERE item_id = ?", [itemId]);
+  for (const tagId of tagIds) {
+    await db.execute("INSERT OR IGNORE INTO item_tags (item_id, tag_id) VALUES (?, ?)", [itemId, tagId]);
+  }
 }
 
 export async function getItemTags(itemId: number): Promise<Tag[]> {

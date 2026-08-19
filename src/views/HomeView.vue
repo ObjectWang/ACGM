@@ -3,6 +3,7 @@
     <!-- 顶部栏 -->
     <header class="topbar">
       <div class="topbar-left">
+        <span class="app-brand">ACGM</span>
         <el-input
           v-model="searchText"
           class="search-input"
@@ -104,7 +105,9 @@
               <el-button text size="small" type="danger" :icon="Delete" @click="confirmDelete(item)">删除</el-button>
             </div>
           </article>
-          <el-empty v-if="!loading && items.length === 0" description="还没有条目，点击「新建条目」开始" />
+          <div v-if="!loading && items.length === 0" class="empty-state">
+            <el-empty description="还没有条目，点击「新建条目」开始" />
+          </div>
         </div>
 
         <!-- 列表视图 -->
@@ -433,6 +436,11 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 20px; background: #fff; border-bottom: 1px solid #ebeef5;
 }
+.app-brand {
+  font-size: 18px; font-weight: 800; letter-spacing: 1px;
+  color: #409eff; margin-right: 16px; flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; }
 .search-input { width: 320px; }
 .topbar-right { display: flex; align-items: center; gap: 12px; }
 
@@ -462,6 +470,13 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px; align-content: start;
+}
+.empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
 }
 .item-card {
   background: #fff; border: 1px solid #ebeef5; border-radius: 10px;
@@ -497,6 +512,6 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 20px; background: #fff; border-top: 1px solid #ebeef5;
 }
-.filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-group { display: flex; align-items: center; gap: 8px; overflow-x: auto; flex-wrap: nowrap; }
 .filter-sep { color: #909399; font-size: 12px; }
 </style>
