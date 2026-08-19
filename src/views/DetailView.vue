@@ -38,13 +38,33 @@
         </div>
       </section>
 
-      <!-- 本地路径（Step 4 接入跳转） -->
+      <!-- 本地路径 -->
       <section v-if="item.local_path" class="info-section">
         <div class="path-row">
           <span class="section-label">本地路径</span>
           <code class="path-text">{{ item.local_path }}</code>
+          <el-text
+            :type="pathValid === true ? 'success' : pathValid === false ? 'warning' : 'info'"
+            size="small"
+          >
+            {{ pathValid === true ? "✅ 有效" : pathValid === false ? "⚠️ 无效" : "验证中…" }}
+          </el-text>
+          <el-tooltip
+            :content="pathValid === false ? '路径不存在' : '打开本地路径'"
+            :disabled="pathValid === null"
+          >
+            <span>
+              <el-button
+                size="small"
+                :icon="FolderOpened"
+                :disabled="pathValid !== true"
+                :loading="opening"
+                @click="handleOpenPath"
+              >打开</el-button>
+            </span>
+          </el-tooltip>
         </div>
-      </section>
+     </section>
 
       <!-- 标签（Step 5 接入） -->
       <section class="info-section">
@@ -90,6 +110,7 @@ import type { Category, Item, ItemStatus } from "../lib/types";
 import { getItem, deleteItem } from "../lib/items";
 import { deleteItemImages } from "../lib/api";
 import { assetUrl } from "../lib/paths";
+import { checkPath, openLocalPath } from "../lib/localpath";
 import ItemFormDialog from "../components/ItemFormDialog.vue";
 import ImageGallery from "../components/ImageGallery.vue";
 
@@ -99,6 +120,10 @@ const router = useRouter();
 const item = ref<Item | null>(null);
 const loading = ref(true);
 const dialogVisible = ref(false);
+
+// local path validity: null = checking, true = valid, false = invalid
+const pathValid = ref<boolean | null>(null);
+const opening = ref(false);
 
 const rateTexts = ["1 星", "2 星", "3 星", "4 星", "5 星"];
 
@@ -135,10 +160,27 @@ async function load() {
   try {
     const id = Number(props.id);
     item.value = await getItem(id);
+    pathValid.value = null;
+    if (item.value?.local_path) {
+      checkPath(item.value.local_path).then((v) => { pathValid.value = v; });
+    }
   } catch (e) {
     ElMessage.error("加载失败：" + String(e));
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleOpenPath() {
+  if (!item.value?.local_path) return;
+  opening.value = true;
+  try {
+    await openLocalPath(item.value.local_path);
+  } catch (e) {
+    ElMessage.error(String(e));
+    pathValid.value = false;
+  } finally {
+    opening.value = false;
   }
 }
 

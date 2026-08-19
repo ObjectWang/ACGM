@@ -80,6 +80,14 @@
               <div class="card-meta">
                 <el-rate :model-value="item.rating ?? 0" disabled size="small" />
                 <span class="status-tag" :class="statusClass(item.status)">{{ item.status }}</span>
+                <el-button
+                  v-if="item.local_path"
+                  text
+                  size="small"
+                  :icon="FolderOpened"
+                  class="path-btn"
+                  @click.stop="openPath(item)"
+                />
               </div>
             </div>
             <div class="card-actions" @click.stop>
@@ -170,6 +178,7 @@ import type { Category, Item, ItemStatus, SortField, SortOrder } from "../lib/ty
 import { listItems, deleteItem, countByCategory } from "../lib/items";
 import { deleteItemImages } from "../lib/api";
 import { assetUrl } from "../lib/paths";
+import { openLocalPath } from "../lib/localpath";
 import ItemFormDialog from "../components/ItemFormDialog.vue";
 
 const router = useRouter();
@@ -261,6 +270,14 @@ async function loadCounts() {
 
 function goDetail(id: number) {
   router.push(`/items/${id}`);
+}
+
+async function openPath(item: Item) {
+  try {
+    await openLocalPath(item.local_path!);
+  } catch (e) {
+    ElMessage.warning(String(e));
+  }
 }
 
 function openCreate() {
@@ -376,6 +393,7 @@ onMounted(() => {
 .st-done { background: #f0f9eb; color: #67c23a; }
 .st-dropped { background: #fef0f0; color: #f56c6c; }
 .card-actions { display: flex; justify-content: flex-end; border-top: 1px solid #f2f3f5; padding: 2px 4px; }
+.path-btn { margin-left: auto; padding: 2px; height: auto; min-height: 0; }
 
 .list-wrap { flex: 1; overflow-y: auto; padding: 16px 20px; }
 .row-title { font-weight: 600; cursor: pointer; }

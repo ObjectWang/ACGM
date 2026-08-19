@@ -39,7 +39,18 @@
       </el-form-item>
 
       <el-form-item label="本地路径" prop="local_path">
-        <el-input v-model="form.local_path" placeholder="可选，留空表示不关联" clearable />
+        <div class="path-input-row">
+          <el-input v-model="form.local_path" placeholder="可选，留空表示不关联" clearable />
+          <el-button-group>
+            <el-button :icon="Folder" @click="pickFolder" title="选择文件夹" />
+            <el-button :icon="Document" @click="pickFile" title="选择文件" />
+          </el-button-group>
+        </div>
+        <div v-if="pathStatus !== 'none'" class="path-status">
+          <el-text :type="pathStatus === 'valid' ? 'success' : 'warning'" size="small">
+            {{ pathStatus === "valid" ? "✅ 路径有效" : "⚠️ 路径不存在（仍可保存）" }}
+          </el-text>
+        </div>
       </el-form-item>
 
       <el-form-item label="简介" prop="description">
@@ -59,12 +70,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, watch } from "vue";
 import type { FormInstance, FormRules } from "element-plus";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { Folder, Document } from "@element-plus/icons-vue";
 import { CATEGORY_OPTIONS, STATUS_OPTIONS } from "../lib/constants";
 import type { Category, Item, ItemInput, ItemStatus } from "../lib/types";
 import { createItem, updateItem } from "../lib/items";
+import { pickFilePath, pickFolderPath, checkPath } from "../lib/localpath";
 
 const props = defineProps<{
   visible: boolean;
@@ -79,6 +92,36 @@ const emit = defineEmits<{
 const formRef = ref<FormInstance>();
 const saving = ref(false);
 const isEdit = computed(() => props.item != null);
+
+// local_path validity indicator: 'none' | 'valid' | 'invalid'
+const pathStatus = ref<"none" | "valid" | "invalid">("none");
+
+async function refreshPathStatus() {
+  const p = form.local_path?.trim();
+  if (!p) {
+    pathStatus.value = "none";
+    return;
+  }
+  pathStatus.value = (await checkPath(p)) ? "valid" : "invalid";
+}
+
+watch(() => form.local_path, () => { pathStatus.value = "none"; });
+
+async function pickFolder() {
+  const p = await pickFolderPath();
+  if (p) {
+    form.local_path = p;
+    await refreshPathStatus();
+  }
+}
+
+async function pickFile() {
+  const p = await pickFilePath();
+  if (p) {
+    form.local_path = p;
+    await refreshPathStatus();
+  }
+}
 
 const rateTexts = ["1 星", "2 星", "3 星", "4 星", "5 星"];
 
@@ -142,6 +185,24 @@ async function handleSubmit() {
   if (!formRef.value) return;
   await formRef.value.validate(async (valid) => {
     if (!valid) return;
+
+    // Validate local path — warn if not found but allow force-save.
+    const p = form.local_path?.trim();
+    if (p) {
+      await refreshPathStatus();
+      if (pathStatus.value === "invalid") {
+        try {
+          await ElMessageBox.confirm(
+            "该本地路径当前不存在（可能是移动硬盘未插入等）。仍要保存吗？",
+            "路径警告",
+            { type: "warning", confirmButtonText: "仍然保存", cancelButtonText: "返回修改" }
+          );
+        } catch {
+          return; // user chose to go back
+        }
+      }
+    }
+
     saving.value = true;
     try {
       const payload: ItemInput = {
@@ -169,3 +230,9 @@ async function handleSubmit() {
   });
 }
 </script>
+
+<style scoped>
+.path-input-row { display: flex; gap: 8px; align-items: center; }
+.path-input-row :deep(.el-input) { flex: 1; }
+.path-status { margin-top: 4px; }
+</style>
