@@ -51,6 +51,7 @@ export interface ItemFilters {
   category?: Category | "all";
   status?: ItemStatus | "all";
   tagIds?: number[];
+  tagLogic?: "and" | "or";
   ratingMin?: number | null;
   ratingMax?: number | null;
   hasLocalPath?: LocalPathFilter;

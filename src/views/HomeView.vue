@@ -140,18 +140,59 @@
         </div>
 
         <!-- 底部：筛选 + 分页 -->
-        <footer class="bottombar">
+       <footer class="bottombar">
           <div class="filter-group">
-            <el-select v-model="statusFilter" placeholder="状态" clearable size="small" style="width: 110px">
+            <el-select v-model="statusFilter" placeholder="状态" clearable size="small" style="width: 100px">
               <el-option v-for="s in STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
-            <el-select v-model="sortBy" size="small" style="width: 120px">
+            <el-select
+              v-model="tagFilter"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              filterable
+              placeholder="标签"
+              size="small"
+              style="width: 140px"
+            >
+              <el-option v-for="t in allTags" :key="t.id" :label="t.name" :value="t.id" />
+            </el-select>
+            <el-radio-group v-if="tagFilter.length > 1" v-model="tagLogic" size="small">
+              <el-radio-button value="and">AND</el-radio-button>
+              <el-radio-button value="or">OR</el-radio-button>
+            </el-radio-group>
+            <el-input-number
+              v-model="ratingMin"
+              :min="1"
+              :max="5"
+              :controls="false"
+              placeholder="最低分"
+              size="small"
+              style="width: 72px"
+            />
+            <span class="filter-sep">~</span>
+            <el-input-number
+              v-model="ratingMax"
+              :min="1"
+              :max="5"
+              :controls="false"
+              placeholder="最高分"
+              size="small"
+              style="width: 72px"
+            />
+            <el-select v-model="localPathFilter" size="small" style="width: 110px">
+              <el-option label="全部路径" value="all" />
+              <el-option label="有本地路径" value="yes" />
+              <el-option label="无本地路径" value="no" />
+            </el-select>
+            <el-select v-model="sortBy" size="small" style="width: 110px">
               <el-option label="更新时间" value="updated_at" />
               <el-option label="创建时间" value="created_at" />
               <el-option label="评分" value="rating" />
               <el-option label="标题" value="title" />
             </el-select>
             <el-button size="small" :icon="sortOrder === 'desc' ? SortDown : SortUp" @click="toggleSort" />
+            <el-button text size="small" @click="resetFilters">重置</el-button>
           </div>
           <el-pagination
             v-model:current-page="page"
@@ -183,8 +224,9 @@ import {
 } from "@element-plus/icons-vue";
 import type { Component } from "vue";
 import { CATEGORY_OPTIONS, STATUS_OPTIONS, categoryLabel, categoryColor } from "../lib/constants";
-import type { Category, Item, ItemStatus, SortField, SortOrder } from "../lib/types";
+import type { Category, Item, ItemStatus, LocalPathFilter, SortField, SortOrder } from "../lib/types";
 import { listItems, deleteItem, countByCategory, getTagsForItems } from "../lib/items";
+import { listTags } from "../lib/tags";
 import type { Tag } from "../lib/types";
 import { deleteItemImages } from "../lib/api";
 import { assetUrl } from "../lib/paths";
@@ -197,6 +239,11 @@ const searchText = ref("");
 const viewMode = ref<"card" | "list">("card");
 const activeCategory = ref<Category | "all">("all");
 const statusFilter = ref<ItemStatus | "">("");
+const tagFilter = ref<number[]>([]);
+const tagLogic = ref<"and" | "or">("and");
+const ratingMin = ref<number | null>(null);
+const ratingMax = ref<number | null>(null);
+const localPathFilter = ref<LocalPathFilter>("all");
 const sortBy = ref<SortField>("updated_at");
 const sortOrder = ref<SortOrder>("desc");
 const page = ref(1);
@@ -209,6 +256,9 @@ const counts = reactive<Record<string, number>>({});
 
 // Tags for each item card, keyed by item id.
 const cardTags = ref<Record<number, Tag[]>>({});
+
+// All available tags for the filter dropdown.
+const allTags = ref<Tag[]>([]);
 
 const dialogVisible = ref(false);
 const editingItem = ref<Item | null>(null);
@@ -250,11 +300,16 @@ async function load() {
   loading.value = true;
   try {
     const res = await listItems({
-      filters: {
-        search: searchText.value.trim() || undefined,
-        category: activeCategory.value,
-        status: statusFilter.value || "all",
-      },
+     filters: {
+       search: searchText.value.trim() || undefined,
+       category: activeCategory.value,
+       status: statusFilter.value || "all",
+        tagIds: tagFilter.value.length ? tagFilter.value : undefined,
+        tagLogic: tagLogic.value,
+        ratingMin: ratingMin.value,
+        ratingMax: ratingMax.value,
+        hasLocalPath: localPathFilter.value,
+     },
       sortBy: sortBy.value,
       sortOrder: sortOrder.value,
       page: page.value,
@@ -335,6 +390,19 @@ function toggleSort() {
   sortOrder.value = sortOrder.value === "desc" ? "asc" : "desc";
 }
 
+function resetFilters() {
+  searchText.value = "";
+  activeCategory.value = "all";
+  statusFilter.value = "";
+  tagFilter.value = [];
+  tagLogic.value = "and";
+  ratingMin.value = null;
+  ratingMax.value = null;
+  localPathFilter.value = "all";
+  page.value = 1;
+  load();
+}
+
 watch(searchText, () => {
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => { page.value = 1; load(); }, 300);
@@ -342,6 +410,11 @@ watch(searchText, () => {
 
 watch(activeCategory, () => { page.value = 1; load(); });
 watch(statusFilter, () => { page.value = 1; load(); });
+watch(tagFilter, () => { page.value = 1; load(); });
+watch(tagLogic, () => { page.value = 1; load(); });
+watch(ratingMin, () => { page.value = 1; load(); });
+watch(ratingMax, () => { page.value = 1; load(); });
+watch(localPathFilter, () => { page.value = 1; load(); });
 watch(sortBy, () => { page.value = 1; load(); });
 watch(sortOrder, () => load());
 watch(page, () => load());
@@ -349,6 +422,7 @@ watch(page, () => load());
 onMounted(() => {
   load();
   loadCounts();
+  listTags().then((t) => { allTags.value = t; }).catch(() => { /* ignore */ });
 });
 </script>
 
@@ -424,4 +498,5 @@ onMounted(() => {
   padding: 10px 20px; background: #fff; border-top: 1px solid #ebeef5;
 }
 .filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-sep { color: #909399; font-size: 12px; }
 </style>

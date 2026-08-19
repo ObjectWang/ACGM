@@ -56,14 +56,21 @@ export async function listItems(options: {
   if (filters.hasLocalPath === "no") {
     where.push("(local_path IS NULL OR local_path = '')");
   }
-  if (filters.tagIds?.length) {
-    const tagIds = filters.tagIds;
-    const placeholders = tagIds.map(() => "?").join(",");
+ if (filters.tagIds?.length) {
+   const tagIds = filters.tagIds;
+   const placeholders = tagIds.map(() => "?").join(",");
+    const logic = filters.tagLogic ?? "and";
+    if (logic === "or") {
+      // OR: items matching ANY of the selected tags
+      where.push(`id IN (SELECT DISTINCT item_id FROM item_tags WHERE tag_id IN (${placeholders}))`);
+      params.push(...tagIds);
+    } else {
     where.push(
       `id IN (SELECT item_id FROM item_tags WHERE tag_id IN (${placeholders}) GROUP BY item_id HAVING COUNT(DISTINCT tag_id) = ?)`
     );
     params.push(...tagIds, tagIds.length);
-  }
+    }
+ }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const direction = sortOrder === "asc" ? "ASC" : "DESC";
