@@ -1,2 +1,2 @@
 # ACGM
-ACG management tool
+用于统一管理个人动画、漫画、游戏及其它媒体资源的桌面应用
