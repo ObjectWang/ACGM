@@ -62,7 +62,15 @@
       </el-form-item>
 
       <el-form-item label="个人评价" prop="review">
-        <el-input v-model="form.review" type="textarea" :rows="5" placeholder="支持 Markdown（后续步骤接入编辑器）" />
+        <MdEditor
+          :model-value="form.review ?? ''"
+          @on-change="(v: string) => (form.review = v || null)"
+          :preview="false"
+          language="zh-CN"
+          :toolbars-exclude="['github', 'save', 'catalog']"
+          style="height: 280px"
+          placeholder="支持 Markdown 语法，撰写个人评价…"
+        />
       </el-form-item>
     </el-form>
 
@@ -84,6 +92,8 @@ import { createItem, updateItem } from "../lib/items";
 import { pickFilePath, pickFolderPath, checkPath } from "../lib/localpath";
 import { getItemTags, setItemTags } from "../lib/items";
 import TagSelector from "./TagSelector.vue";
+import { MdEditor } from "md-editor-v3";
+import "md-editor-v3/lib/style.css";
 
 const props = defineProps<{
   visible: boolean;

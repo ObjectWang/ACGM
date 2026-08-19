@@ -92,11 +92,13 @@
         <p class="description-text">{{ item.description }}</p>
       </section>
 
-      <!-- 个人评价（Step 7 接入 Markdown 渲染） -->
+      <!-- 个人评价 -->
       <section v-if="item.review" class="info-section">
         <h2 class="section-heading">个人评价</h2>
-        <pre class="review-text">{{ item.review }}</pre>
-      </section>
+        <div class="review-preview">
+          <MdPreview :model-value="item.review" language="zh-CN" />
+        </div>
+     </section>
     </div>
 
     <el-empty v-else-if="!loading" description="条目不存在或已删除" />
@@ -122,6 +124,8 @@ import { assetUrl } from "../lib/paths";
 import { checkPath, openLocalPath } from "../lib/localpath";
 import ItemFormDialog from "../components/ItemFormDialog.vue";
 import ImageGallery from "../components/ImageGallery.vue";
+import { MdPreview } from "md-editor-v3";
+import "md-editor-v3/lib/preview.css";
 
 const props = defineProps<{ id: string }>();
 const router = useRouter();
@@ -267,5 +271,5 @@ onMounted(load);
 .tag-chip { margin-right: 6px; }
 .path-text { font-size: 13px; background: #f3f4f6; padding: 2px 8px; border-radius: 4px; }
 .description-text { margin: 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; color: #374151; }
-.review-text { margin: 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; color: #374151; font-family: inherit; background: #fff; padding: 14px; border-radius: 8px; border: 1px solid #ebeef5; }
+.review-preview { background: #fff; padding: 16px; border-radius: 8px; border: 1px solid #ebeef5; }
 </style>
