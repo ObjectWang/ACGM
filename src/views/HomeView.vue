@@ -96,7 +96,7 @@
                   :key="tag.id"
                   size="small"
                   :color="tag.color || undefined"
-                  :style="tag.color ? { color: '#fff', borderColor: tag.color } : {}"
+                  :style="tag.color ? { color: tagTextColor(tag.color), borderColor: tag.color } : {}"
                 >{{ tag.name }}</el-tag>
               </div>
             </div>
@@ -226,7 +226,7 @@ import {
   SortDown, SortUp, VideoPlay, Reading, Monitor, FolderOpened,
 } from "@element-plus/icons-vue";
 import type { Component } from "vue";
-import { CATEGORY_OPTIONS, STATUS_OPTIONS, categoryLabel, categoryColor } from "../lib/constants";
+import { CATEGORY_OPTIONS, STATUS_OPTIONS, categoryLabel, categoryColor, tagTextColor } from "../lib/constants";
 import type { Category, Item, ItemStatus, LocalPathFilter, SortField, SortOrder } from "../lib/types";
 import { listItems, deleteItem, countByCategory, getTagsForItems } from "../lib/items";
 import { listTags } from "../lib/tags";

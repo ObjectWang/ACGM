@@ -76,7 +76,7 @@
           v-for="tag in itemTags"
           :key="tag.id"
           :color="tag.color || undefined"
-          :style="tag.color ? { color: '#fff', borderColor: tag.color } : {}"
+          :style="tag.color ? { color: tagTextColor(tag.color), borderColor: tag.color } : {}"
           size="small"
           class="tag-chip"
         >{{ tag.name }}</el-tag>
@@ -118,7 +118,7 @@ import {
   ArrowLeft, Edit, Delete, VideoPlay, Reading, Monitor, FolderOpened,
 } from "@element-plus/icons-vue";
 import type { Component } from "vue";
-import { categoryLabel, categoryColor } from "../lib/constants";
+import { categoryLabel, categoryColor, tagTextColor } from "../lib/constants";
 import type { Category, Item, ItemStatus } from "../lib/types";
 import { getItem, deleteItem, getItemTags } from "../lib/items";
 import type { Tag } from "../lib/types";
